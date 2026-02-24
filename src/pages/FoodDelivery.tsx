@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import { X, Plus, Calendar, User, Briefcase, ChevronDown } from 'lucide-react';
-import { useFoodOrderSession } from '../contexts/FoodOrderSession';
+import { useGlobalCart } from '../contexts/GlobalCartContext';
 
 interface DeliveryMode {
   id: 'motorbike' | 'car' | 'bicycle';
@@ -24,6 +24,7 @@ const SNAP_THRESHOLD = 65;
 
 export function FoodDelivery() {
   const navigate = useNavigate();
+  const { cart } = useGlobalCart();
 
   // Load data from localStorage (from FoodiesRoute)
   const [routeData, setRouteData] = useState<any>(() => {
@@ -46,7 +47,6 @@ export function FoodDelivery() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Use route data from localStorage
-  const cartItems = routeData?.cart || [];
   const deliveryLocation = routeData?.deliveryLocation || '';
   const stops = routeData?.stops || [];
 
@@ -77,34 +77,30 @@ export function FoodDelivery() {
     }
   ];
 
-  // Calculate food items assigned to current location (not assigned to stops)
-  const getStopFoodIds = () => {
-    const ids: string[] = [];
-    stops.forEach((stop: any) => {
-      if (stop.foodIds) {
-        ids.push(...stop.foodIds);
-      }
-    });
-    return ids;
-  };
+  // CART IS THE SINGLE SOURCE OF TRUTH
+  // Total item count from cart (includes all items - current location + all stops)
+  const totalItemCount = useMemo(() => cart.length, [cart.length]);
 
-  const stopFoodIds = getStopFoodIds();
-  const currentLocationFoods = cartItems.filter((item: any) => !stopFoodIds.includes(item.id));
+  // Food subtotal from cart (constant across all delivery modes)
+  const foodSubtotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price, 0);
+  }, [cart]);
 
-  const totalItemCount = currentLocationFoods.length;
-  const foodSubtotal = currentLocationFoods.reduce((sum: number, item: any) => sum + item.price, 0);
+  // Delivery fee changes based on selected mode
   const selectedMode = deliveryModes.find(m => m.id === selectedModeId);
   const deliveryFee = selectedMode?.deliveryFee || 0;
+
+  // Total = constant subtotal + variable delivery fee
   const total = foodSubtotal + deliveryFee;
 
   const isExpanded = panelHeight > SNAP_THRESHOLD;
 
   useEffect(() => {
-    if (!routeData || cartItems.length === 0) {
+    if (!routeData || cart.length === 0) {
       console.log('No route data or empty cart, redirecting to shop');
-      navigate('/shop');
+      navigate('/shop', { replace: true });
     }
-  }, [routeData, cartItems.length, navigate]);
+  }, [routeData, cart.length, navigate]);
 
   useEffect(() => {
     if (selectedFilter === 'standard') {
@@ -157,11 +153,8 @@ export function FoodDelivery() {
   };
 
   const handleClose = () => {
-    navigate('/foodies-route', {
-      state: {
-        highlightCurrentLocation: true
-      }
-    });
+    // Use navigate(-1) to go back to previous page cleanly
+    navigate(-1);
   };
 
   const handleAddStop = () => {
@@ -172,19 +165,13 @@ export function FoodDelivery() {
     };
     localStorage.setItem('FOODIES_ROUTE_DATA', JSON.stringify(updatedData));
 
-    navigate('/foodies-route', {
-      state: {
-        autoAddStop: true
-      }
-    });
+    // Use navigate(-1) to avoid route stacking
+    navigate(-1);
   };
 
   const handleAddressClick = () => {
-    navigate('/foodies-route', {
-      state: {
-        highlightCurrentLocation: true
-      }
-    });
+    // Use navigate(-1) to go back cleanly
+    navigate(-1);
   };
 
   const handleSelectMode = () => {
@@ -260,16 +247,18 @@ export function FoodDelivery() {
 
           <button
             onClick={handleAddressClick}
-            className="flex-1 text-left overflow-hidden"
+            className="flex-1 text-left min-w-0"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-900 truncate">
-                {getAddressDisplay()}
-              </span>
-              <span className="text-gray-400">→</span>
-              <span className="text-sm font-medium text-gray-700 truncate">
-                Delivery ({totalItemCount} item{totalItemCount !== 1 ? 's' : ''})
-              </span>
+            <div className="overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-sm font-medium text-gray-900">
+                  {getAddressDisplay()}
+                </span>
+                <span className="text-gray-400">→</span>
+                <span className="text-sm font-medium text-gray-700">
+                  Delivery ({totalItemCount} item{totalItemCount !== 1 ? 's' : ''})
+                </span>
+              </div>
             </div>
           </button>
 
