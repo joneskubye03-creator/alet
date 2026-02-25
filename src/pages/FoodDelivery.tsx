@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import { X, Plus, Calendar, User, Briefcase, ChevronDown } from 'lucide-react';
 import { useGlobalCart } from '../contexts/GlobalCartContext';
+import { DeliveryCard } from '../components/DeliveryCard';
 
 interface DeliveryMode {
   id: 'motorbike' | 'car' | 'bicycle';
@@ -378,43 +379,15 @@ export function FoodDelivery() {
         <div className="flex-1 overflow-y-auto px-4" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="space-y-3 mb-6">
             {sortedModes.map((mode, index) => (
-              <motion.button
+              <DeliveryCard
                 key={mode.id}
-                onClick={() => setSelectedModeId(mode.id)}
-                className={`w-full p-4 rounded-2xl transition-all border-2 ${
-                  selectedModeId === mode.id
-                    ? 'bg-green-50 border-green-600'
-                    : 'bg-white border-gray-200 hover:border-gray-300'
-                }`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 flex-shrink-0 text-3xl flex items-center justify-center">
-                    {mode.icon}
-                  </div>
-
-                  <div className="flex-1 text-left">
-                    <h3 className="font-bold text-gray-900 text-base mb-1">{mode.label}</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <span>{mode.time}</span>
-                      <span>🍔{totalItemCount}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{mode.description}</p>
-                  </div>
-
-                  <div className="flex-shrink-0 text-right">
-                    <div className="font-bold text-gray-900 text-lg">
-                      R {total}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      R {mode.deliveryFee}
-                    </div>
-                  </div>
-                </div>
-              </motion.button>
+                mode={mode}
+                subtotal={foodSubtotal}
+                totalItemCount={totalItemCount}
+                isSelected={selectedModeId === mode.id}
+                onSelect={() => setSelectedModeId(mode.id)}
+                index={index}
+              />
             ))}
           </div>
 
@@ -434,7 +407,7 @@ export function FoodDelivery() {
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
               <span className="text-gray-900">Total</span>
-              <span className="text-gray-900">R {total}</span>
+              <span className="text-gray-900">R {foodSubtotal + deliveryFee}</span>
             </div>
           </motion.div>
         </div>
